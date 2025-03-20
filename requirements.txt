@@ -1,0 +1,5 @@
+python-telegram-bot
+openai
+firebase-admin
+gunicorn
+firebase-admin
