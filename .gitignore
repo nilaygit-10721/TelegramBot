@@ -49,5 +49,4 @@ pylint-global.txt
 .env
 
 
-./serviceAccountKey.json
 serviceAccountKey.json
