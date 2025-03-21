@@ -1,5 +1,9 @@
 python-telegram-bot
 openai
-firebase-admin
 gunicorn
+python-dotenv
 firebase-admin
+Pillow
+requests
+asyncio
+logging
