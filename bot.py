@@ -17,11 +17,18 @@ from PIL import Image, ImageDraw, ImageFont
 # Load environment variables
 load_dotenv()
 
-# Initialize Firebase
-cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
-db = firestore.client()
 
+SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")
+if SERVICE_ACCOUNT_KEY:
+    # Convert the JSON string to a dictionary
+    service_account_info = json.loads(SERVICE_ACCOUNT_KEY)
+    
+    # Initialize Firebase
+    cred = credentials.Certificate(service_account_info)
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+else:
+    raise ValueError("SERVICE_ACCOUNT_KEY environment variable is missing.")
 # Initialize OpenAI API
 API_KEY = os.getenv("API_KEY")
 BASE_URL = os.getenv("BASE_URL")
