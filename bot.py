@@ -16,19 +16,63 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Load environment variables
 load_dotenv()
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+import os
+import json
+
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
 
-SERVICE_ACCOUNT_KEY = os.getenv("SERVICE_ACCOUNT_KEY")
-if SERVICE_ACCOUNT_KEY:
-    # Convert the JSON string to a dictionary
-    service_account_info = json.loads(SERVICE_ACCOUNT_KEY)
+ #Initialize Firebase with error handling
+FIRESTORE_AVAILABLE = False
+
+def initialize_firebase():
+    global FIRESTORE_AVAILABLE, db
     
-    # Initialize Firebase
-    cred = credentials.Certificate(service_account_info)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-else:
-    raise ValueError("SERVICE_ACCOUNT_KEY environment variable is missing.")
+    try:
+        # Get the service account JSON from environment variable
+        service_account_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+        
+        # Check if the environment variable exists
+        if not service_account_json:
+            logger.error("FIREBASE_SERVICE_ACCOUNT_JSON not set in .env file")
+            return False
+            
+        # Parse the JSON string to a dictionary
+        try:
+            service_account_info = json.loads(service_account_json)
+        except json.JSONDecodeError:
+            logger.error("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON")
+            return False
+            
+        # Initialize the app
+        cred = credentials.Certificate(service_account_info)
+        firebase_admin.initialize_app(cred)
+        
+        # Initialize Firestore
+        db = firestore.client()
+        
+        # Test the connection
+        test_ref = db.collection('test').document('connection_test')
+        test_ref.set({'timestamp': firestore.SERVER_TIMESTAMP})
+        test_doc = test_ref.get()
+        
+        logger.info(f"Firebase initialized successfully. Test data: {test_doc.to_dict()}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error initializing Firebase: {e}")
+        return False
+
+# Initialize Firebase
+FIRESTORE_AVAILABLE = initialize_firebase()
+
 # Initialize OpenAI API
 API_KEY = os.getenv("API_KEY")
 BASE_URL = os.getenv("BASE_URL")
@@ -97,11 +141,24 @@ async def ai_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get user's interests for context
         user_ref = db.collection("users").document(str(user_id))
         user_doc = user_ref.get()
-        user_data = user_doc.to_dict()
-        interests = user_data.get("interests", [])
+        
+        # Check if user exists in database
         interests_context = ""
-        if interests:
-            interests_context = f"The user has expressed interest in: {', '.join(interests)}. "
+        if user_doc.exists:
+            user_data = user_doc.to_dict()
+            interests = user_data.get("interests", [])
+            if interests:
+                interests_context = f"The user has expressed interest in: {', '.join(interests)}. "
+        else:
+            # Create a new user document if it doesn't exist
+            new_user_data = {
+                "user_id": user_id,
+                "join_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "interests": [],
+                "points": 0,
+                "last_active": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            user_ref.set(new_user_data)
             
         # Personalized prompt based on user's chat history and interests
         system_prompt = f"You are an assistant for Systemic Altruism, an organization focused on effective altruism and community-building. {interests_context}Provide helpful, concise responses. Keep answers under 150 words unless detailed information is requested."
@@ -139,7 +196,6 @@ async def ai_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text("❌ Error in AI response. Please try again later.")
         logging.error(f"Error in AI response: {e}")
-
 # 3. Motivational Quotes Generator
 quotes = [
     "🌟 Believe in yourself and all that you are.",
