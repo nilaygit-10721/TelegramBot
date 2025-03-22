@@ -38,7 +38,7 @@ def initialize_firebase():
     
     try:
         # Path to the service account JSON file
-        service_account_path = './service.json'
+        service_account_path = '/etc/secrets/service.json'
         
         # Check if the file exists
         if not os.path.exists(service_account_path):
