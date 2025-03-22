@@ -1,6 +1,6 @@
 # Systemic Altruism Community Management Bot
 
-![Systemic Altruism Bot](https://via.placeholder.com/800x400?text=Systemic+Altruism+Bot)
+![alt text](image.png)
 
 ## 📱 Overview
 
