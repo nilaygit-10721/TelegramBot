@@ -7,3 +7,4 @@ Pillow
 requests
 asyncio
 logging
+python-telegram-bot[job-queue]
