@@ -29,30 +29,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
- #Initialize Firebase with error handling
+ # Initialize Firebase with error handling
 FIRESTORE_AVAILABLE = False
+db = None
 
 def initialize_firebase():
     global FIRESTORE_AVAILABLE, db
     
     try:
-        # Get the service account JSON from environment variable
-        service_account_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+        # Path to the service account JSON file
+        service_account_path = './service.json'
         
-        # Check if the environment variable exists
-        if not service_account_json:
-            logger.error("FIREBASE_SERVICE_ACCOUNT_JSON not set in .env file")
+        # Check if the file exists
+        if not os.path.exists(service_account_path):
+            logger.error(f"Firebase credentials file not found at {service_account_path}")
             return False
             
-        # Parse the JSON string to a dictionary
-        try:
-            service_account_info = json.loads(service_account_json)
-        except json.JSONDecodeError:
-            logger.error("FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON")
-            return False
-            
-        # Initialize the app
-        cred = credentials.Certificate(service_account_info)
+        # Initialize the app with the credentials file
+        cred = credentials.Certificate(service_account_path)
         firebase_admin.initialize_app(cred)
         
         # Initialize Firestore

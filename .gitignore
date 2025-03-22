@@ -48,5 +48,4 @@ pylint-global.txt
 # Environment variables
 .env
 
-
-serviceAccountKey.json
+service.json
