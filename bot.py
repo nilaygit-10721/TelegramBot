@@ -13,6 +13,10 @@ import asyncio
 import requests
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
+import signal
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
 
 # Load environment variables
 load_dotenv()
@@ -29,6 +33,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+
+
  # Initialize Firebase with error handling
 FIRESTORE_AVAILABLE = False
 db = None
@@ -37,32 +43,54 @@ def initialize_firebase():
     global FIRESTORE_AVAILABLE, db
     
     try:
-        # Path to the service account JSON file
-        service_account_path = '/etc/secrets/service.json'
+        # Try multiple possible paths for the service account file
+        possible_paths = [
+            '/etc/secrets/service.json',  # Render secret files path
+            './service.json',             # Root directory
+            'service.json'                # Current directory
+        ]
         
-        # Check if the file exists
-        if not os.path.exists(service_account_path):
-            logger.error(f"Firebase credentials file not found at {service_account_path}")
-            return False
+        for service_account_path in possible_paths:
+            if os.path.exists(service_account_path):
+                logger.info(f"Found Firebase credentials at {service_account_path}")
+                cred = credentials.Certificate(service_account_path)
+                firebase_admin.initialize_app(cred)
+                
+                # Initialize Firestore
+                db = firestore.client()
+                
+                # Test the connection
+                test_ref = db.collection('test').document('connection_test')
+                test_ref.set({'timestamp': firestore.SERVER_TIMESTAMP})
+                
+                logger.info("Firebase initialized successfully")
+                return True
+                
+        # If no file found, check environment variable
+        service_account_json = os.getenv('FIREBASE_CREDENTIALS')
+        if service_account_json:
+            logger.info("Using Firebase credentials from environment variable")
+            service_account_info = json.loads(service_account_json)
+            cred = credentials.Certificate(service_account_info)
+            firebase_admin.initialize_app(cred)
             
-        # Initialize the app with the credentials file
-        cred = credentials.Certificate(service_account_path)
-        firebase_admin.initialize_app(cred)
+            # Initialize Firestore
+            db = firestore.client()
+            
+            # Test the connection
+            test_ref = db.collection('test').document('connection_test')
+            test_ref.set({'timestamp': firestore.SERVER_TIMESTAMP})
+            
+            logger.info("Firebase initialized successfully from environment variable")
+            return True
         
-        # Initialize Firestore
-        db = firestore.client()
-        
-        # Test the connection
-        test_ref = db.collection('test').document('connection_test')
-        test_ref.set({'timestamp': firestore.SERVER_TIMESTAMP})
-        test_doc = test_ref.get()
-        
-        logger.info(f"Firebase initialized successfully. Test data: {test_doc.to_dict()}")
-        return True
+        logger.error("No Firebase credentials found")
+        return False
         
     except Exception as e:
         logger.error(f"Error initializing Firebase: {e}")
         return False
+
 
 # Initialize Firebase
 FIRESTORE_AVAILABLE = initialize_firebase()
