@@ -17,6 +17,7 @@ import signal
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
+from flask import Flask, request
 
 # Load environment variables
 load_dotenv()
@@ -1435,10 +1436,44 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ai_reply))
 job_queue = app.job_queue
 job_queue.run_daily(daily_digest, time=time(hour=8, minute=0, second=0))  # 8 AM daily digest
 
-application = ApplicationBuilder().token(os.getenv('BOT_TOKEN')).build()
-application.run_polling()
+new = Flask(__name__)
+TOKEN = os.getenv('BOT_TOKEN')
+
+application = ApplicationBuilder().token(TOKEN).build()
+@new.route(f'/{TOKEN}', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.process_update(update)
+    return 'ok'
+
+@new.route('/')
+def index():
+    return "Bot is running!"
+
+# This is an endpoint to set up your webhook
+@new.route('/set_webhook')
+def set_webhook():
+    url = os.getenv('WEBHOOK_URL', f'https://your-app.onrender.com') + f'/{TOKEN}'
+    result = application.bot.set_webhook(url)
+    if result:
+        return f"Webhook set up at {url}"
+    return "Failed to set webhook"
+
+# This is an endpoint to remove webhooks (useful for debugging)
+@new.route('/remove_webhook')
+def remove_webhook():
+    result = application.bot.delete_webhook()
+    if result:
+        return "Webhook removed"
+    return "Failed to remove webhook"
+
+port = int(os.environ.get('PORT', 8080))
+new.run(host='0.0.0.0', port=port)
+
+# application = ApplicationBuilder().token(os.getenv('BOT_TOKEN')).build()
+# application.run_polling()
     
-logger.info("Bot started with polling method")
+# logger.info("Bot started with polling method")
 print("Enhanced Bot is running... 🚀")
 app.run_polling()
         
