@@ -8,3 +8,4 @@ requests
 asyncio
 logging
 python-telegram-bot[job-queue]
+flask
