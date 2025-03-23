@@ -1435,6 +1435,10 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, ai_reply))
 job_queue = app.job_queue
 job_queue.run_daily(daily_digest, time=time(hour=8, minute=0, second=0))  # 8 AM daily digest
 
+application = ApplicationBuilder().token(os.getenv('BOT_TOKEN')).build()
+application.run_polling()
+    
+logger.info("Bot started with polling method")
 print("Enhanced Bot is running... 🚀")
 app.run_polling()
         
